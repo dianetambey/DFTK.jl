@@ -168,10 +168,10 @@ Array(H)
 # such that overall
 # ```math
 # f''(x) \simeq \frac{f(x + 2δx) - f(x + δx) - f(x + δx) + f(x)}{δx^2}
-#        = \frac{f(x + 2δx) - 2f(x + δx) f(x)}{δx^2}
+#        = \frac{f(x + 2δx) - 2f(x + δx) + f(x)}{δx^2}
 # ```
 # In finite differences we consider a stick basis of vectors
-# ```math
+# ```math 
 # \left\{ e_i = (0, …, 0, \underbrace{δx}_\text{$i$-th position}, 0, …, 0)
 #         \middle| i = 1, … N \right\}.
 # ```
