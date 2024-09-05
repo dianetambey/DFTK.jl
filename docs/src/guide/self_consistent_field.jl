@@ -83,7 +83,7 @@
 #
 # It turns out that for the largest chunk of cases the eigenvalues of
 # $\varepsilon^\dagger$ are positive. Moreover near a local minimiser
-# $\varepsilon^\dagger$ always has non-degative spectrum.
+# $\varepsilon^\dagger$ always has non-negative spectrum.
 #
 # To make the SCF converge one can therefore:
 # - Choose $\alpha$ small enough. Even for $P = I$ this always works, but convergence can be painfully slow. (see e.g. the proof in [^HL2022])
@@ -257,7 +257,7 @@ end;
 #                       damping=0.8, maxiter=40,
 #                       mixing=SimpleMixing());
 # ```
-# to choose a damping of $\alpha = 0.8$ and run for at most `maxiter` iterations.
+# to choose a damping of $\alpha = 0.8$ and run for at most `maxiter = 40` iterations.
 #
 # !!! tip "Exercise 2"
 #     Based on this Anderson implementation verify (by making a few experiments) that the algorithm converges for `repeat=1` for any $0 < \alpha \leq 2$. You may now use the `damping` parameter for changing the value $\alpha$ used by the SCF. State the number of iterations and runtimes you observe.
@@ -275,7 +275,7 @@ end;
 # more challenging systems it is not fully sufficient. The next ingredient for
 # a stable SCF procedure is based on the insight that the convergence
 # properties of an SCF provably depend on the dielectric properties of
-# materials, which is simulated. Amongst others this is to say that insulators
+# materials, which are simulated. Amongst others this is to say that insulators
 # (like glass), semiconductors (like silicon) or metals (like aluminium) have
 # rather differing SCF behaviours. As a result the ideal SCF procedure should
 # be slightly different for each material.
@@ -287,7 +287,7 @@ end;
 # ```
 # where $v_c$ is the classical Coulomb kernel we introduced previously and $K_\text{xc} = d^2 E_\text{xc}(\rho)$ is the Hessian of the exchange-correlation energy functional.
 #
-# For well-behaved systems the smallest eigenvalue of $\varepsilon^\dagger$ is around $1$ while the largest eigenvalue is of order $10$ (or less). Due to a number of instabilities in the modelled systems either the smallest eigenvalue can decrease or the largest eigenvalue can increase, thus giving a larker condition number $\kappa$ and worse convergence. For a detailed discussion, see Section 2 of [^HL2021].
+# For well-behaved systems the smallest eigenvalue of $\varepsilon^\dagger$ is around $1$ while the largest eigenvalue is of order $10$ (or less). Due to a number of instabilities in the modelled systems either the smallest eigenvalue can decrease or the largest eigenvalue can increase, thus giving a larger condition number $\kappa$ and worse convergence. For a detailed discussion, see Section 2 of [^HL2021].
 #
 # In this discussion we will restrict ourselves to a single source of instabilities, namely the one due to the long range divergence of the Coulomb kernel $v_c$. Indeed, if $\hat{\rho}(q)$ are the Fourier coefficients of the density, then
 # ```math
@@ -315,7 +315,7 @@ end;
 # 
 # For **metals** the observation $\lim_{q\to0} \chi_0(q) \simeq -D$ directly leads to the **Kerker preconditioner**
 # ```math
-# P_\text{Kerker}^{-1}(q) = \left( 1 - \frac{4\pi -D}{|q|^2} \right)^{-1} = \frac{|q|^2}{|q|^2 + 4\pi D}.
+# P_\text{Kerker}^{-1}(q) = \left( 1 - \frac{4\pi (-D)}{|q|^2} \right)^{-1} = \frac{|q|^2}{|q|^2 + 4\pi D}.
 # ```
 # The Kerker preconditioner is available in DFTK as `KerkerMixing` and `KerkerDosMixing` (which automatically determines the density of states from the current orbitals and occupations).
 # 
@@ -356,7 +356,7 @@ plot!(p, x -> ε(χ0_SiO2, x),  label="silica (SiO₂)", ls=:dashdot)
 # 1. Since the preconditioner models (especially between metals and insulators) are rather distinct, the preconditioner needs to match the modelled material to ensure fast convergence for large systems. In other words one needs to know **a priori** what material one is modelling.
 # 2. Being by nature bulk models, they miss important applications featuring inhomogeneous systems, such as catalytic surfaces, metal clusters etc.
 # 
-# In order to overcome the second point it is important to realise that we need to give up on the translational independence of $\chi_0$, i.e. we no longer are able to compute $P^{-1}(q)$ by $1/P(q)$. Our strategy will therefore be to construct more sophisticated approximations to $\chi_0$, denoted by $\widetilde{\chi_0}$. The preconditioned density $x_n = P^{-1} \rho_n = (1 - \widetilde{\chi_0} v_c)^{-1}$ is then obtained by solving
+# In order to overcome the second point it is important to realise that we need to give up on the translational independence of $\chi_0$, i.e. we no longer are able to compute $P^{-1}(q)$ by $1/P(q)$. Our strategy will therefore be to construct more sophisticated approximations to $\chi_0$, denoted by $\widetilde{\chi_0}$. The preconditioned density $x_n = P^{-1} \rho_n = (1 - \widetilde{\chi_0} v_c)^{-1} \rho_n$ is then obtained by solving
 # ```math
 # (1 - \widetilde{\chi_0} v_c) x_n = \rho_n
 # ```
@@ -435,4 +435,72 @@ plot!(p, x -> ε(χ0_SiO2, x),  label="silica (SiO₂)", ls=:dashdot)
 #
 # [^HL2021]: M. Herbst, A. Levitt. *J. Phys.: Condens. Matter* **33** 085503 (2021) DOI: [10.1088/1361-648x/abcbdb](http://dx.doi.org/10.1088/1361-648x/abcbdb)
 # [^HL2022]: M. Herbst, A. Levitt *J. Comp. Phys.* **459** 111127 (2022). DOI [10.1016/j.jcp.2022.111127](http://dx.doi.org/10.1016/j.jcp.2022.111127)
+# ## Solutions
+# ### Exercice 1
+# First, we modify the algorithm to include the daming parameter
+function damping_fixed_point_iterationd(F, ρ₀, maxiter, alpha; tol)
+    ## alpha:        The damping parameter
 
+    ρ  = ρ₀
+    Fρ = F(ρ)
+    for n = 1:maxiter
+        if norm(Fρ - ρ) < tol
+            break
+        end
+        ## modification of the iteration to add damping 
+        Fρ = ρ + alpha(Fρ - ρ)
+        ρ  = Fρ
+    end
+
+    (fixpoint=ρ, converged=norm(Fρ-ρ) < tol)
+end;
+# Then we start by decreasing \alpha slowly to find the limit value for convergence, then we find the fastest one by keeping on decreasing it.
+
+# ### Exercice 2
+# To verify that the algorithm converges for $repeat=1$ we can run the SCF (with anderson iteration) in function of \alpha in the interval of $]0,2]$.
+# The number of iterations and runtimes found are:
+# \alpha iterations runtimes:
+# 0.0001 21 4.6s
+# 0.001 23 4.6s
+# 0.01 23 3.6s
+# 0.1 16 2.3s
+# 0.5 12 2.2s
+# 0.8 11 1.9s
+# 1 11 2.0s
+# 1.5 13 2.1s
+# 1.8 14 2.2s
+# 2 14 2.3s
+
+# ### Exercice 3
+# number of iterations and runtimes.
+# 2 23 11.8 s converged
+# 4 72.5s 27
+# 6  285s 32
+# 8 40 1070
+time_variation = [11.8, 72.5, 285, 1070]
+repeat_variation = [2, 4, 6, 8]
+# As the size of the problem becomes larger, more iterations are required and the convergence fails.
+#
+# ### Exercice 4
+# Here the basis is the $aluminium_setup$:
+basis = aluminium_setup()
+# We can get SCF results for different values of $repeat$ using Keker mixing, and find the number of iterations needed.
+self_consistent_field(basis; damping=0.8, mixing=KerkerMixing());
+
+# Then we can try other mixings for a fixed value of $repeat=$
+# repeant =2   15 10
+# repeat = 1  9 1.9
+# 3 not conv 11 2.3
+# 4 9 1.7
+# 5 9 1.9
+# 6 10 2
+# 7 10 1.9
+# 8 11 1.9
+# Finally, we can choose other types of mixing and compare the results obtained:
+# For DielectricMixing: 10 1.9s converged (1)   
+self_consistent_field(basis; damping=0.8, mixing=DielectricMixing());
+# For SimpleMixing: 11 1.2s conv
+self_consistent_field(basis; damping=0.8, mixing=SimpleMixing());
+# For LdosMixing: 17 1.8s conv
+self_consistent_field(basis; damping=0.8, mixing=LdosMixing());
+# The results are good for repeat=1 
