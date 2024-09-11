@@ -1,0 +1,88 @@
+# # Finding KCl properties
+#
+# In this example, we will study the electronic properties of the bulk KCl using DFTK. Then, we will compare with experimental results.
+# More precisely, we will compare the theoretical bond length computed to the experimental value found. 
+# To do that, we will look at the problem as a series of exercices leading to the goal.
+# The experimental result comes from the following journal: [Crystal Growth & Design](https://pubs.acs.org/journal/cgdefu).
+# The value found for the lattice constant was $6.36 \AA$.
+#
+using DFTK
+using Plots
+using ASEconvert
+using LinearAlgebra
+#
+# We will try to optimize the value of the lattice constant $a$ to be able to compare the results.
+
+# ## Defining and Modelling the system
+# !!! tip "Exercise 1"
+#     Create a KCl bulk function of $a$ using ASEconvert.
+#     *Hint:* Rock salts or Halite crystals are cubic or isometric crystals. They contain 2 different types of ions: the smaller ones correspond to sodium cations and the larger one to chlorine ions.
+#     However, KCl has the same crystal structure as NaCl, the only difference is that the size of potassium ions is bigger leading to a larger unit cell.
+# !!! tip "Solution 1"
+!      function optimize(a)
+           ## create a bulk system precising symbols, structure, and the lattice constant as a parameter
+!          ase.build.bulk("KCl","rocksalt",a)
+!      end
+
+# We will start by using an initial arbitrary lattice constant $a=6$ to be able to define the bulk.
+!ase_KCl = ase.build.bulk("KCl","rocksalt",6)
+#
+# !!! tip "Exercise 2" 
+#     Define a system using pyconvert.
+
+# !!! tip "Solution 2"
+!      system = pyconvert(AbstractSystem, ase_KCl)
+#
+# !!! tip "Exercise 3" 
+#     Define a model using plane waves.
+
+# !!! tip "Solution 3" 
+!     model = model_PBE(system; symmetries=false, temperature=1e-1)
+#
+# !!! tip "Exercise 4" 
+#     Create a basis using plane waves and the following data: $Ecut = 20.0$,$ kgrid = [4, 4, 4]$, $tolerance = 10^-8$
+
+# !!! tip "Solution 4" 
+!     basis = PlaneWaveBasis(model; Ecut=20.0, kgrid=[4, 4, 4])
+#
+# !!! tip "Exercice 5" 
+#     Set up the self consistent field and get a look at the energies.
+
+# !!! tip "Solution 5" 
+!     scfres = self_consistent_field(basis, tol=1e-8);
+!#     Running the self consistent field with this value of $a$ doesn't converge indicating it's a wrong lattice constant.
+!#     Now that we got an initial value of the ground state energy, we can repeat and optimise the energy by trying out different values of the lattice constant.
+#
+# !!! tip "Exercice 6" 
+#     Try out some values of a and plot a graph of the ground state energy in function of the lattice constant value.
+#     Start by a small integral to identify some range for $a$ then change the range until you get a parabola.
+#     *Hint:* As the calculations are very long (since we are looking at a range of values), some of the parameters used for the SCF are modified in the loop to accelerate the process.
+
+# !!! tip "Solution 6"      
+!#     Note that changing the paremeters change the value of $a$, for example, increasing the number of kpoints decreases the value of $a$.
+!#     However in this case, as we are looking at a range of values, the approximation should be accurate enough.
+!     begin
+!         new_system = pyconvert(AbstractSystem, optimize(6.375))
+!         new_model = model_PBE(new_system; symmetries=false, temperature=1e-1)
+!         new_basis = PlaneWaveBasis(new_model; Ecut=20.0, kgrid=[4, 4, 4])
+!         new_scfres = self_consistent_field(new_basis, tol=1e-8);
+!     end
+!     plot(a_values, energies)
+
+
+# !!! tip "Exercice 7" 
+#     Find the lattice constant from the curve and compare the corresponding lattice constant with the experimental value.
+
+# !!! tip "Solution 7"
+!#     The correspondinglattice constant is by definition the x-value associated to the minimal value of the energy. Therefore in this case it is $a=6.375$.
+!#     Now that we know the minimal value of the lattice constant, we can optimise the energy by changing back the parameters.
+!     begin
+!     	  new_system = pyconvert(AbstractSystem, optimize(6.375))
+!	      new_model = model_PBE(new_system; symmetries=false, temperature=1e-1)
+!	      new_basis = PlaneWaveBasis(new_model; Ecut=20.0, kgrid=[4, 4, 4])
+!	      new_scfres = self_consistent_field(new_basis, tol=1e-8);
+!     end
+!#     The difference of energy is quite large. However the number of kpoints is still not very precise. Although the runtime is already at 164s.
+!#     One can try to increase it, for example $kgrid=[6, 6, 6]$ and try to run the program. However, the runtime will already be around 15 min showing how compromising information and accuracy is important.
+!#
+
